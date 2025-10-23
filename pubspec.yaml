@@ -32,6 +32,7 @@ flutter:
   assets:
     - assets/stations.json
     - assets/images/logo.png
+    - assets/images/logo_diario.jpg
 
 flutter_launcher_icons:
   android: true
