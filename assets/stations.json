@@ -1,0 +1,21 @@
+
+[
+  {
+    "id": 1,
+    "name": "Radio Demo",
+    "description": "La mejor mezcla de hits.",
+    "imageUrl": "assets/images/logo.png",
+    "channels": [
+      {
+        "id": 11,
+        "name": "MP3 128kbps",
+        "streamUrl": "http://stream.zeno.fm/uhd3p3z6rhhvv"
+      },
+      {
+        "id": 12,
+        "name": "AAC 64kbps",
+        "streamUrl": "http://stream.zeno.fm/8z7s7hm2qfhvv"
+      }
+    ]
+  }
+]

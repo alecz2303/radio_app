@@ -1,0 +1,51 @@
+
+name: app_radio
+description: A simple Flutter radio streaming app with channels and favorites.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  http: ^1.2.2
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.17
+  audio_service: ^0.18.12
+  audio_session: ^0.1.19
+  rxdart: ^0.27.7
+  shared_preferences: ^2.3.3
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/stations.json
+    - assets/images/logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/logo_diario.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#ffffff" # Fondo blanco o ajusta a tu color corporativo
+  image: assets/images/logo_diario.png
+  branding: null
+  android: true
+  ios: false
+  web: false
+  android_12:
+    color: "#ffffff"
+    image: assets/images/logo_diario.png
