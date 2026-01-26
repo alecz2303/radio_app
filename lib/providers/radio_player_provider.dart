@@ -1,103 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
+import 'package:audio_service/audio_service.dart';
+import 'radio_audio_handler.dart';
 import '../modules/radio/models/station.dart';
 import '../modules/radio/models/channel.dart';
+import '../modules/radio/services/favorites_service.dart';
 
 class RadioPlayerProvider extends ChangeNotifier {
-  final _player = AudioPlayer();
+  final AudioHandler _audioHandler;
+
   Station? currentStation;
   Channel? currentChannel;
 
-  bool get isPlaying => _player.playing;
-  bool get hasStation => currentStation != null;
-
-  RadioPlayerProvider() {
-    // 🔊 Escucha los cambios en el estado del reproductor (play/pause/buffer/etc.)
-    _player.playerStateStream.listen((state) {
-      debugPrint(
-          '🎵 Estado del player: ${state.processingState} | playing=${state.playing}');
-      notifyListeners();
-    });
-
-    // 🔁 Escucha cambios de fuente de audio (cuando cambia la estación)
-    _player.sequenceStateStream.listen((state) {
-      final tag = state?.sequence?.isNotEmpty == true
-          ? state!.currentSource?.tag
-          : null;
-
-      if (tag is MediaItem) {
-        debugPrint('📡 MediaItem activo: ${tag.title} (${tag.album})');
-      }
-    });
-
-    // 🧠 Escucha los eventos de progreso o buffering
-    _player.playbackEventStream.listen((event) {
-      final position = _player.position;
-      debugPrint(
-        '📍 Evento: ${event.processingState} | posición=$position',
-      );
-    });
+  RadioPlayerProvider(this._audioHandler) {
+    _audioHandler.playbackState.listen((_) => notifyListeners());
+    _initFavorites();
   }
 
-  /// ▶️ Reproducir una estación y canal específicos
+  bool get isPlaying => _audioHandler.playbackState.value.playing;
+  bool get hasStation => currentStation != null;
+
+  Future<void> _initFavorites() async {
+    await FavoritesService.init();
+    notifyListeners();
+  }
+  
+  bool isFavorite(Station station, Channel channel) {
+    return FavoritesService.isFavorite(station.id, channel.id);
+  }
+
+  Future<void> toggleFavorite(Station station, Channel channel) async {
+    await FavoritesService.toggleFavorite(station.id, channel.id);
+    notifyListeners();
+  }
+
   Future<void> play(Station station, Channel channel) async {
     currentStation = station;
     currentChannel = channel;
 
-    debugPrint('🎧 Iniciando reproducción de: ${station.name} (${channel.name})');
-    debugPrint('🔗 URL: ${channel.streamUrl}');
-    debugPrint('🖼️ Logo: ${station.logoUrl}');
-
-    try {
-      await _player.stop();
-      debugPrint('⏹️ Player detenido. Cargando nueva fuente...');
-
-      final source = AudioSource.uri(
-        Uri.parse(channel.streamUrl),
-        tag: MediaItem(
-          id: channel.streamUrl,
-          album: station.name,
-          title: channel.name,
-          artUri: Uri.parse(station.logoUrl),
-        ),
-      );
-
-      await _player.setAudioSource(source);
-      debugPrint('✅ Fuente configurada correctamente.');
-
-      await _player.play();
-      debugPrint('▶️ Reproducción iniciada.');
-    } catch (e, st) {
-      debugPrint('❌ Error al reproducir ${channel.streamUrl}: $e');
-      debugPrint(st.toString());
-    }
-  }
-
-  /// ⏯️ Cambiar entre play y pause
-  Future<void> togglePlayPause() async {
-    if (_player.playing) {
-      debugPrint('⏸️ Pausando reproducción...');
-      await _player.pause();
-    } else {
-      debugPrint('▶️ Reanudando reproducción...');
-      await _player.play();
-    }
-  }
-
-  /// ⏹️ Detener completamente el reproductor
-  Future<void> stop() async {
-    debugPrint('⛔ Deteniendo player.');
-    await _player.stop();
-    currentStation = null;
-    currentChannel = null;
+    await (_audioHandler as RadioAudioHandler).playStream(
+      url: channel.streamUrl,
+      title: channel.name,
+      imageUrl: station.logoUrl,
+      artist: station.name,
+    );
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    debugPrint('🧹 Liberando recursos del player.');
-    _player.dispose();
-    super.dispose();
+  Future<void> togglePlayPause() async {
+    if (isPlaying) {
+      await _audioHandler.pause();
+    } else {
+      await _audioHandler.play();
+    }
+    notifyListeners();
+  }
+
+  Future<void> stop() async {
+    await _audioHandler.stop();
+    currentStation = null;
+    currentChannel = null;
+    notifyListeners();
   }
 }

@@ -1,121 +1,174 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math' as math;
+import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/radio_player_provider.dart';
 
-class BottomNowPlayingBar extends StatelessWidget {
+class BottomNowPlayingBar extends StatefulWidget {
   const BottomNowPlayingBar({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final player = context.watch<RadioPlayerProvider>();
-
-    // 🔒 Si no hay estación activa, no muestra nada
-    if (!player.hasStation) return const SizedBox.shrink();
-
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            offset: const Offset(0, -2),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: ListTile(
-        leading: const Icon(Icons.radio, color: Colors.white),
-        title: Text(
-          player.currentStation?.name ?? '',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          player.currentChannel?.name ?? '',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _AnimatedBars(isPlaying: player.isPlaying),
-            const SizedBox(width: 12),
-            IconButton(
-              icon: Icon(
-                player.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                color: Colors.white,
-                size: 36,
-              ),
-              onPressed: player.togglePlayPause,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<BottomNowPlayingBar> createState() => _BottomNowPlayingBarState();
 }
 
-class _AnimatedBars extends StatefulWidget {
-  final bool isPlaying;
-  const _AnimatedBars({required this.isPlaying});
-
-  @override
-  State<_AnimatedBars> createState() => _AnimatedBarsState();
-}
-
-class _AnimatedBarsState extends State<_AnimatedBars>
+class _BottomNowPlayingBarState extends State<BottomNowPlayingBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(covariant _AnimatedBars oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-      _controller.value = 0.3;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, __) {
-        return SizedBox(
-          width: 16,
-          height: 24,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(3, (i) {
-              final double height = (6 + 12 * (_controller.value - (i * 0.1)).abs().clamp(0, 1)).toDouble();
-              return Container(
-                width: 3,
-                height: height.toDouble(),
-                decoration: BoxDecoration(
-                  color: Colors.greenAccent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              );
-            }),
-          ),
-        );
-      },
-    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<RadioPlayerProvider>();
+
+    if (!player.hasStation) return const SizedBox.shrink();
+
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E).withOpacity(0.85),
+            border: const Border(
+              top: BorderSide(color: Colors.white10, width: 1),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              // 🎵 Logo de la estación
+              if (player.currentStation?.logoUrl != null)
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: player.currentStation!.logoUrl,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        width: 56,
+                        height: 56,
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.radio, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 16),
+
+              // 📻 Nombre del canal
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      player.currentChannel?.name ?? '',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      player.currentStation?.name ?? '',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
+              ),
+
+              // 🔊 Onda animada
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  if (!player.isPlaying) return const SizedBox(width: 10);
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(4, (i) {
+                      final height = 12 +
+                          math.sin((_controller.value * 2 * math.pi) + (i * 0.8)) *
+                              10;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Container(
+                          width: 4,
+                          height: height,
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.shade400,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      );
+                    }),
+                  );
+                },
+              ),
+              const SizedBox(width: 16),
+
+              // ▶️ / ⏸️ Botón play-pause
+              GestureDetector(
+                onTap: () => player.togglePlayPause(),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    color: Colors.black,
+                    size: 30,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
