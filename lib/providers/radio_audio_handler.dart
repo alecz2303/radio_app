@@ -1,42 +1,64 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
 
 class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
-  final _player = AudioPlayer();
+  final AudioPlayer _player = AudioPlayer();
 
   RadioAudioHandler() {
     _player.playbackEventStream.listen((event) {
+      final playing = _player.playing;
       playbackState.add(
-        playbackState.value.copyWith(
-          controls: const [
-            MediaControl.pause,
-            MediaControl.play,
+        PlaybackState(
+          controls: [
+            if (playing) MediaControl.pause else MediaControl.play,
             MediaControl.stop,
           ],
-          playing: _player.playing,
-          processingState: const {
-            ProcessingState.idle: AudioProcessingState.idle,
-            ProcessingState.loading: AudioProcessingState.loading,
-            ProcessingState.buffering: AudioProcessingState.buffering,
-            ProcessingState.ready: AudioProcessingState.ready,
-            ProcessingState.completed: AudioProcessingState.completed,
-          }[_player.processingState]!,
+          systemActions: const {},
+          androidCompactActionIndices: const [0],
+          playing: playing,
+          processingState: _mapProcessingState(_player.processingState),
+          updateTime: DateTime.now(),
         ),
       );
     });
   }
 
-  /// Actualiza el MediaItem mostrado en la notificación
-  @override
-  Future<void> updateMediaItem(MediaItem item) async {
-    mediaItem.add(item);
+  AudioProcessingState _mapProcessingState(ProcessingState state) {
+    switch (state) {
+      case ProcessingState.idle:
+        return AudioProcessingState.idle;
+      case ProcessingState.loading:
+        return AudioProcessingState.loading;
+      case ProcessingState.buffering:
+        return AudioProcessingState.buffering;
+      case ProcessingState.ready:
+        return AudioProcessingState.ready;
+      case ProcessingState.completed:
+        return AudioProcessingState.completed;
+    }
   }
 
-  @override
-  Future<void> playMediaItem(MediaItem item) async {
-    updateMediaItem(item);
-    await _player.setUrl(item.id);
-    await _player.play();
+  Future<void> playStream({
+    required String url,
+    required String title,
+    required String imageUrl,
+    String? artist,
+  }) async {
+    try {
+      await _player.setUrl(url);
+      mediaItem.add(
+        MediaItem(
+          id: url,
+          title: title,
+          album: artist ?? "La Radio del Diario",
+          artUri: Uri.parse(imageUrl),
+        ),
+      );
+      await _player.play();
+    } catch (e) {
+      debugPrint('❌ Error reproduciendo $url: $e');
+    }
   }
 
   @override
@@ -48,13 +70,6 @@ class RadioAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> stop() async {
     await _player.stop();
-    return super.stop();
-  }
-
-  @override
-  Future<void> addQueueItem(MediaItem item) async {
-    queue.add([item]);
-    updateMediaItem(item);
-    await _player.setUrl(item.id);
+    super.stop();
   }
 }
